@@ -1,0 +1,101 @@
+name: Deploy DotNet project to Azure Function App
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  APP_NAME: 'tamas-test'   # set this to your function app name on Azure
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'FunctionApp'       # set this to the path to your function app project, defaults to the repository root
+  DOTNET_VERSION: '6.0.x'                   # set this to the dotnet version to use (e.g. '2.1.x', '3.1.x', '5.0.x')
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 'Configure Azure Credentials'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 'Checkout'
+      uses: actions/checkout@v3
+
+    - name: 'Setup Terraform'
+      uses: hashicorp/setup-terraform@v2
+
+    - shell: bash
+      env:
+        AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+      run: |    
+        CLIENT_ID=$(echo $AZURE_CREDENTIALS | jq -r '.["clientId"]')
+        CLIENT_SECRET=$(echo $AZURE_CREDENTIALS | jq -r '.["clientSecret"]')       
+        SUBSCRIPTION_ID=$(echo $AZURE_CREDENTIALS | jq -r '.["subscriptionId"]')
+        TENANT_ID=$(echo $AZURE_CREDENTIALS | jq -r '.["tenantId"]')
+        
+        echo "::add-mask::$CLIENT_ID"
+        echo "::add-mask::$CLIENT_SECRET"
+        echo "::add-mask::$SUBSCRIPTION_ID"
+        echo "::add-mask::$TENANT_ID"
+        
+        echo CLIENT_ID=$CLIENT_ID >> $GITHUB_ENV
+        echo CLIENT_SECRET=$CLIENT_SECRET >> $GITHUB_ENV
+        echo SUBSCRIPTION_ID=$SUBSCRIPTION_ID >> $GITHUB_ENV
+        echo TENANT_ID=$TENANT_ID >> $GITHUB_ENV
+
+    - name: 'Terraform Init'
+      run: terraform init
+      env:
+        ARM_CLIENT_ID: ${{ env.CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
+        ARM_SUBSCRIPTION_ID: ${{ env.SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ env.TENANT_ID }}
+
+    - name: 'Terraform Apply'
+      run: terraform apply -auto-approve
+      env:
+        AppName: ${{ env.APP_NAME }}
+        DataDogApiKey: ${{ secrets.DATADOG_API_KEY }}
+        DataDogAgentUri: ${{ secrets.DATADOG_AGENT_URI }}
+        DataDogStatsDHost: ${{ secrets.DATADOG_STATSD_HOST }}
+        DataDogLogUri: ${{ secrets.DATADOG_LOG_URI }}
+        ARM_CLIENT_ID: ${{ env.CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
+        ARM_SUBSCRIPTION_ID: ${{ env.SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ env.TENANT_ID }}
+
+
+  build-and-deploy:
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+    - name: 'Login via Azure CLI'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v3
+
+    - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 'Resolve Project Dependencies Using Dotnet'
+      shell: pwsh
+      run: |
+        pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+        dotnet build --configuration Release --output ./output
+        popd
+
+    - name: 'Run Azure Functions Action'
+      uses: Azure/functions-action@v1
+      id: fa
+      with:
+        app-name: ''${{ env.APP_NAME }}-function-hackathon'
+        package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
