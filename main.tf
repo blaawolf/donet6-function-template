@@ -15,7 +15,7 @@ terraform {
     resource_group_name  = "rg-tamas-function-app-test"
     storage_account_name = "tfhackathon"
     container_name       = "tfstate"
-    key                  = "${AppName}.tfstate"
+    key                  = "{ApName}.tfstate" # set this to app name, variables cannot be used here
   }
 }
 
