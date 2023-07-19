@@ -14,5 +14,6 @@ This template includes:
 
 After successful deployment, you can access your function app at [{AppName}-function-hackathon.azurewebsites.net](https://github.com/flipdishbytes/dotnet6-function-template/blob/7041e691de40669f46bfa1413fd9247b0aff5adf/main.tf#L18)
 
-[How to use Flipdish SDK?](https://github.com/flipdishbytes/api-client-csharp-netcore)
-[How to create a Flipdish App Store app?](https://developers.flipdish.com/docs/how-to-create-a-flipdish-app-store-app)
+## Links:
+* [How to use Flipdish SDK?](https://github.com/flipdishbytes/api-client-csharp-netcore)
+* [How to create a Flipdish App Store app?](https://developers.flipdish.com/docs/how-to-create-a-flipdish-app-store-app)
