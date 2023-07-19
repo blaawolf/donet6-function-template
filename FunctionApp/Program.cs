@@ -1,7 +1,7 @@
 using FunctionApp;
 using Microsoft.Extensions.Hosting;
 
-var serviceName = "tamas-test";
+var serviceName = Environment.GetEnvironmentVariable("AppName");
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
